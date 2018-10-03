@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+	<appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+		<encoding>utf-8</encoding>
+		<target>System.out</target>
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n%ex{full}</pattern>
+			<charset>utf-8</charset>
+		</encoder>
+	</appender>
+
+	<appender name="file" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<encoding>cp1251</encoding>
+		<file>${catalina.base}/logs/ssnd_demo_vkchat.log</file>
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n%ex{full}</pattern>
+			<charset>utf-8</charset>
+		</encoder>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>${catalina.base}/logs/ssnd_demo_vkchat_%d{yyyy-MM-dd}.log</fileNamePattern>
+		</rollingPolicy>
+	</appender>
+
+	<root level="info">
+		<appender-ref ref="stdout"/>
+		<appender-ref ref="file"/>
+	</root>
+
+	<!--<root level="debug">-->
+		<!--<appender-ref ref="stdout"/>-->
+		<!--<appender-ref ref="file"/>-->
+	<!--</root>-->
+
+</configuration>
