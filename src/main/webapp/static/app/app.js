@@ -38,7 +38,7 @@
             var pollNext = function () {
                 $http.get('/api/chat/' + $scope.master.interlocutorId + '/poll')
                     .then(function (r) {
-                        (r.messages || []).filter(function (msg) {
+                        (r.data.messages || []).filter(function (msg) {
                             return !isMessageBuffered(msg.id);
                         }).forEach(function (msg) {
                             msg.sent = $rootScope.appData.selfId === msg.sender.id;

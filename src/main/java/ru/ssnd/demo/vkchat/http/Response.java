@@ -9,7 +9,10 @@ import org.springframework.http.ResponseEntity;
 
 public class Response extends ResponseEntity<String> {
 
-    private final static Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").excludeFieldsWithoutExposeAnnotation().create();
+    private final static Gson gson = new GsonBuilder()
+            .setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
+            .excludeFieldsWithoutExposeAnnotation()
+            .create();
 
     public enum Error {
 

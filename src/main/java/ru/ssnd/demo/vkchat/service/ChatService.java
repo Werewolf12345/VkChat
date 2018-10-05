@@ -8,6 +8,7 @@ import com.vk.api.sdk.exceptions.ApiException;
 import com.vk.api.sdk.exceptions.ClientException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.messages.LongpollParams;
+import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.Response;
 import org.json.JSONArray;
@@ -15,9 +16,10 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.ssnd.demo.vkchat.entity.Message;
+import ru.ssnd.demo.vkchat.entity.Sender;
 import ru.ssnd.demo.vkchat.repository.MessagesRepository;
 
-import java.io.IOException;
+import java.sql.Date;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -54,50 +56,65 @@ public class ChatService {
         return true;
     }
 
-    public Future<Message> getMessage(Long interlocutorId) throws ClientException, ApiException, IOException {
-        CompletableFuture<Message> completableFuture
+    public Future<Message> getMessage(Long interlocutorId) throws ClientException, ApiException {
+        CompletableFuture<Message> promise
                 = new CompletableFuture<>();
-        LongpollParams longpollParams = vk.messages().getLongPollServer(actor).execute();
 
+        LongpollParams longpollParams = vk.messages()
+                                          .getLongPollServer(actor)
+                                          .execute();
         String key = longpollParams.getKey();
         Integer ts = longpollParams.getTs();
         String server = longpollParams.getServer();
 
-        try (AsyncHttpClient asyncHttpClient = asyncHttpClient()) {
-            asyncHttpClient
-                    .prepareGet("https://" + server)
-                    .addQueryParam("act", "a_check")
-                    .addQueryParam("key", key)
-                    .addQueryParam("ts", ts != null ? ts.toString() : "0")
-                    .addQueryParam("wait", "25")
-                    .addQueryParam("mode", "2")
-                    .execute()
-                    .toCompletableFuture()
-                    .thenApply(Response::getResponseBody)
-                    .thenAccept(responseBody -> {
-                        System.out.println("Got response: " + responseBody);
-                        JSONObject mainObj = new JSONObject(responseBody);
-                        JSONArray jsonArray = (JSONArray) mainObj.get("updates");
+        AsyncHttpClient asyncHttpClient = asyncHttpClient();
+        asyncHttpClient.prepareGet("https://" + server)
+                .addQueryParam("act", "a_check")
+                .addQueryParam("key", key)
+                .addQueryParam("ts", ts != null ? ts.toString() : "0")
+                .addQueryParam("wait", "25")
+                .addQueryParam("mode", "2")
+                .execute(new AsyncCompletionHandler<Response>() {
+                    @Override
+                    public Response onCompleted(Response response) {
+                        Message message = null;
 
-                        for (int i = 0; i < jsonArray.length(); i++) {
-                            System.out.println(jsonArray.get(i).toString());
-                        }
+                        JSONObject mainObj = new JSONObject(response.getResponseBody());
+                        JSONArray jsonArray = (JSONArray) mainObj.get("updates");
 
                         GsonBuilder gsonBuilder = new GsonBuilder();
                         Gson gson = gsonBuilder.create();
-
                         Object[][] updates = gson.fromJson(jsonArray.toString(), Object[][].class);
 
+                        System.out.println("Got response: " + response);
+
                         for (Object[] updatesArray : updates) {
-                                if((Double) updatesArray[0] == 4.0
-                                        && new Double((double)updatesArray[3]).longValue() == interlocutorId) {
-                                    System.out.println("New message from: " + new Double((double)updatesArray[3]).longValue() + "\nText: " + updatesArray[6]);
-                                    completableFuture.complete(new Message());
-                                }
+                            if ((Double) updatesArray[0] == 4.0
+                                    && new Double((double) updatesArray[3]).longValue() == interlocutorId) {
+                                message = new Message();
+                                message.setId(new Double((double) updatesArray[1]).longValue());
+                                Sender sender = new Sender();
+                                sender.setId(new Double((double) updatesArray[3]).longValue());
+                                sender.setAvatarUrl("https://vk.com/images/camera_50.png?ava=1");
+                                sender.setName("John Connor");
+                                message.setSender(sender);
+                                message.setSentAt(new Date(new Double((double) updatesArray[4]).longValue() * 1000L));
+                                message.setText((String) updatesArray[6]);
+                            }
                         }
-                    });
-        }
-        return completableFuture;
+
+                        promise.complete(message);
+                        return response;
+                    }
+
+                    @Override
+                    public void onThrowable(Throwable t) {
+                        System.out.println("public void onThrowable(Throwable t): " + t.getMessage());
+                        promise.completeExceptionally(t);
+                    }
+                });
+
+        return promise;
     }
 
     // TODO Get, send & store messages

@@ -1,8 +1,13 @@
 package ru.ssnd.demo.vkchat.entity;
 
+import com.google.gson.annotations.Expose;
+
 public class Sender {
+    @Expose
     Long id;
+    @Expose
     String avatarUrl;
+    @Expose
     String name;
 
     public Long getId() {

@@ -35,3 +35,6 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
+/.idea/
+/catalina.base_IS_UNDEFINED/
+/VkChat.iml
