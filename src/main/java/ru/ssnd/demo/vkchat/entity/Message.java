@@ -3,8 +3,8 @@ package ru.ssnd.demo.vkchat.entity;
 import com.google.gson.annotations.Expose;
 
 import javax.persistence.Entity;
-import java.sql.Date;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 
 @Entity
 public class Message {
@@ -45,6 +45,14 @@ public class Message {
 
     public void setSentAt(Date sentAt) {
         this.sentAt = sentAt;
+    }
+
+    public Boolean getSent() {
+        return sent;
+    }
+
+    public void setSent(Boolean sent) {
+        this.sent = sent;
     }
 
     public String getText() {

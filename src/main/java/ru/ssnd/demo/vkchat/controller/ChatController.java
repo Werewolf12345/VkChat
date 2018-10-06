@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.context.request.async.DeferredResult;
@@ -16,10 +17,7 @@ import ru.ssnd.demo.vkchat.entity.Message;
 import ru.ssnd.demo.vkchat.http.Response;
 import ru.ssnd.demo.vkchat.service.ChatService;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -42,15 +40,15 @@ public class ChatController {
         // This is debug code
         //TODO Wait for a new message from ChatService, then set, not just thread with sleep
         new Thread(() -> {
-            Future<Message> messageFuture = null;
+            Future<List<Message>> messagesListFuture = null;
             try {
-                messageFuture = chatService.getMessage(interlocutorId);
+                messagesListFuture = chatService.getMessage(interlocutorId);
             } catch (ClientException | ApiException e) {
                 e.printStackTrace();
             }
 
-            assert messageFuture != null;
-            while (!messageFuture.isDone()){
+            assert messagesListFuture != null;
+            while (!messagesListFuture.isDone()){
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
@@ -58,16 +56,12 @@ public class ChatController {
                 }
             }
 
-            Message message = null;
+            List<Message> list = Collections.emptyList();
             try {
-                message = messageFuture.get();
+                list = messagesListFuture.get();
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
             }
-            System.out.println(message != null ? message : "No messages yet, sorry...");
-
-            List<Message> list = new ArrayList<>();
-            list.add(message);
 
             Gson gson = new GsonBuilder()
                     .setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
@@ -86,13 +80,18 @@ public class ChatController {
     }
 
     @RequestMapping(value = "{interlocutorId}/send", method = RequestMethod.POST)
-    public Response send(@PathVariable Long interlocutorId) {
+    public Response send(@PathVariable Long interlocutorId, @RequestBody String  jsonString) throws ClientException,
+            ApiException {
 
         //TODO Send with ChatService
 
+        JSONObject jsonObject = new JSONObject(jsonString);
+        String messageText = jsonObject.getString("messagetext");
+
+        Message message = chatService.sendMessage(interlocutorId, messageText);
+
         return new Response.Builder()
-                .withField("message", new JSONObject())
+                .withEntityField("message", message)
                 .build();
     }
-
 }

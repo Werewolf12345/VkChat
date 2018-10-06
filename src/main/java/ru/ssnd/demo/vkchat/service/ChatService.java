@@ -19,7 +19,9 @@ import ru.ssnd.demo.vkchat.entity.Message;
 import ru.ssnd.demo.vkchat.entity.Sender;
 import ru.ssnd.demo.vkchat.repository.MessagesRepository;
 
-import java.sql.Date;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -48,21 +50,36 @@ public class ChatService {
         return COMMUNITY_ID;
     }
 
-    public boolean sendMessage(String message) throws ClientException, ApiException {
-        vk
+    public Message sendMessage(Long interlocutorId, String message) throws ClientException, ApiException {
+        Integer messageId = vk.messages()
+                .send(actor)
+                .message(message)
+                .userId(Math.toIntExact(interlocutorId))
+                .execute();
 
-                .messages().send(actor).message(message).userId(185014513).execute();
+        Sender sender = new Sender();
+        sender.setId(interlocutorId);
+        sender.setAvatarUrl("https://vgy.me/8zipf9.png");
+        sender.setName("Я грустный кот");
 
-        return true;
+        Message messageBeenSent = new Message();
+        messageBeenSent.setText(message);
+        messageBeenSent.setSender(sender);
+        messageBeenSent.setId(messageId.longValue());
+        messageBeenSent.setSentAt(new Date());
+        messageBeenSent.setSent(true);
+
+        return messageBeenSent;
     }
 
-    public Future<Message> getMessage(Long interlocutorId) throws ClientException, ApiException {
-        CompletableFuture<Message> promise
+    public Future<List<Message>> getMessage(Long interlocutorId) throws ClientException, ApiException {
+        CompletableFuture<List<Message>> promise
                 = new CompletableFuture<>();
 
         LongpollParams longpollParams = vk.messages()
                                           .getLongPollServer(actor)
                                           .execute();
+
         String key = longpollParams.getKey();
         Integer ts = longpollParams.getTs();
         String server = longpollParams.getServer();
@@ -77,8 +94,6 @@ public class ChatService {
                 .execute(new AsyncCompletionHandler<Response>() {
                     @Override
                     public Response onCompleted(Response response) {
-                        Message message = null;
-
                         JSONObject mainObj = new JSONObject(response.getResponseBody());
                         JSONArray jsonArray = (JSONArray) mainObj.get("updates");
 
@@ -87,11 +102,12 @@ public class ChatService {
                         Object[][] updates = gson.fromJson(jsonArray.toString(), Object[][].class);
 
                         System.out.println("Got response: " + response);
+                        List<Message> messagesList = new ArrayList<>();
 
                         for (Object[] updatesArray : updates) {
                             if ((Double) updatesArray[0] == 4.0
                                     && new Double((double) updatesArray[3]).longValue() == interlocutorId) {
-                                message = new Message();
+                                Message message = new Message();
                                 message.setId(new Double((double) updatesArray[1]).longValue());
                                 Sender sender = new Sender();
                                 sender.setId(new Double((double) updatesArray[3]).longValue());
@@ -100,10 +116,12 @@ public class ChatService {
                                 message.setSender(sender);
                                 message.setSentAt(new Date(new Double((double) updatesArray[4]).longValue() * 1000L));
                                 message.setText((String) updatesArray[6]);
+
+                                messagesList.add(message);
                             }
                         }
 
-                        promise.complete(message);
+                        promise.complete(messagesList);
                         return response;
                     }
 

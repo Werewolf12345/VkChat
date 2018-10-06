@@ -64,23 +64,14 @@
                 if (!$scope.master.message) {
                     return;
                 }
-                $http.post('/api/chat/' + $scope.master.interlocutorId + '/send')
+                $http({
+                    url: '/api/chat/' + $scope.master.interlocutorId + '/send',
+                    method: "POST",
+                    data: { 'messagetext' : $scope.master.message }
+                })
                     .then(function (r) {
-                        r = {
-                            message:
-                                {
-                                    id: 3,
-                                    sent: true,
-                                    sender: {
-                                        avatarUrl: 'https://vgy.me/8zipf9.png',
-                                        name: 'Я грустный кот'
-                                    },
-                                    sentAt: '2018-10-01T18:12:01Z',
-                                    text: '!!!Хочу смеяться 15 минут!'
-                                }
-                        };
-                        if(!isMessageBuffered(r.message.id)) {
-                            $scope.messagesBuffer.push(r.message);
+                        if(!isMessageBuffered(r.data.message.id)) {
+                            $scope.messagesBuffer.push(r.data.message);
                         }
                     });
             };

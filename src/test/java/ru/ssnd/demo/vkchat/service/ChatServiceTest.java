@@ -26,17 +26,25 @@ public class ChatServiceTest {
     @Test
     public void getMessageTest() throws ClientException, ApiException, InterruptedException, ExecutionException {
         ChatService chatService = new ChatService(null);
-        Future<Message> messageFuture = chatService.getMessage(509947643L);
+        Future<List<Message>> messageFuture = chatService.getMessage(509947643L);
 
         while (!messageFuture.isDone()){
             Thread.sleep(1000);
         }
 
-        Message message = messageFuture.get();
-        System.out.println(message != null ? message : "No messages yet, sorry...");
+        for (Message message : messageFuture.get()) {
+            System.out.println(message != null ? message : "No messages yet, sorry...");
+        }
     }
 
     @Ignore
+    @Test
+    public void sendMessageTest() throws ClientException, ApiException {
+        ChatService chatService = new ChatService(null);
+
+        System.out.println(chatService.sendMessage(509947643L, "Test"));
+    }
+
     @Test
     public void jsonArrayMessagesTest() {
         Message message1 = new Message();
@@ -70,9 +78,10 @@ public class ChatServiceTest {
         map.put("messages", list);
         String jsonString = gson.toJson(map);
 
-        assertEquals("{\"messages\":[{\"id\":1,\"sender\":{\"id\":1,\"avatarUrl\":null,\"name\":null}," +
-                "\"sentAt\":\"2018-10-03 17:28:44\",\"text\":\"Message text 1\"},{\"id\":2,\"sender\":{\"id\":2," +
-                "\"avatarUrl\":null,\"name\":null},\"sentAt\":\"2018-10-03 17:27:04\",\"text\":\"Message text 2\"}]}",
+        assertEquals("{\"messages\":[{\"id\":1,\"sent\":false,\"sender\":{\"id\":1,\"avatarUrl\":null,\"name\":null},"
+                        + "\"sentAt\":\"2018-10-03T17:28:44-0500\",\"text\":\"Message text 1\"},{\"id\":2," + "\"sent" +
+                        "\":false,\"sender\":{\"id\":2,\"avatarUrl\":null,\"name\":null}," + "\"sentAt\":\"2018-10" +
+                        "-03T17:27:04-0500\",\"text\":\"Message text 2\"}]}",
                 jsonString) ;
     }
 }
