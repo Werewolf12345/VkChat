@@ -2,8 +2,6 @@ package ru.ssnd.demo.vkchat.controller;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.vk.api.sdk.exceptions.ApiException;
-import com.vk.api.sdk.exceptions.ClientException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,15 +15,20 @@ import ru.ssnd.demo.vkchat.entity.Message;
 import ru.ssnd.demo.vkchat.http.Response;
 import ru.ssnd.demo.vkchat.service.ChatService;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 @Controller
 @RequestMapping(value = "/api/chat")
 public class ChatController {
-
     private final ChatService chatService;
+
+    private static final String EMPTY_MESSAGES_JSON = "{\"messages\": []}";
+    private static final long LONGPOLL_TIMEOUT_MSECS = 25 * 1000L;
 
     @Autowired
     public ChatController(ChatService chatService) {
@@ -35,53 +38,40 @@ public class ChatController {
     @RequestMapping(value = "{interlocutorId}/poll", method = RequestMethod.GET)
     public DeferredResult<Response> poll(@PathVariable Long interlocutorId) {
 
-        DeferredResult<Response> result = new DeferredResult<>();
-
-        // This is debug code
         //TODO Wait for a new message from ChatService, then set, not just thread with sleep
-        new Thread(() -> {
-            Future<List<Message>> messagesListFuture = null;
-            try {
-                messagesListFuture = chatService.getMessage(interlocutorId);
-            } catch (ClientException | ApiException e) {
-                e.printStackTrace();
-            }
 
-            assert messagesListFuture != null;
-            while (!messagesListFuture.isDone()){
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
+        final Response emptyResponse = new Response(EMPTY_MESSAGES_JSON, HttpStatus.OK);
+        final DeferredResult<Response> deferredResult = new DeferredResult<>(LONGPOLL_TIMEOUT_MSECS, emptyResponse);
 
-            List<Message> list = Collections.emptyList();
-            try {
-                list = messagesListFuture.get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
+        CompletableFuture.supplyAsync(() -> chatService.getMessage(interlocutorId))
+                .whenCompleteAsync((result, throwable) -> {
 
-            Gson gson = new GsonBuilder()
-                    .setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
-                    .excludeFieldsWithoutExposeAnnotation()
-                    .serializeNulls()
-                    .create();
+                    List<Message> list = Collections.emptyList();
+                    try {
+                        list = result.get();
+                    } catch (InterruptedException | ExecutionException e) {
+                        e.printStackTrace();
+                        deferredResult.setResult(emptyResponse);
+                    }
 
-            Map<String, List<Message>> map = new TreeMap<>();
-            map.put("messages", list);
-            String jsonString = gson.toJson(map);
+                    Map<String, List<Message>> map = new TreeMap<>();
+                    map.put("messages", list);
 
-            result.setResult(new Response(jsonString, HttpStatus.OK));
-        }).start();
+                    Gson gson = new GsonBuilder()
+                            .setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
+                            .excludeFieldsWithoutExposeAnnotation()
+                            .serializeNulls()
+                            .create();
+                    String jsonString = gson.toJson(map);
 
-        return result;
+                    deferredResult.setResult(new Response(jsonString, HttpStatus.OK));
+                });
+
+        return deferredResult;
     }
 
     @RequestMapping(value = "{interlocutorId}/send", method = RequestMethod.POST)
-    public Response send(@PathVariable Long interlocutorId, @RequestBody String  jsonString) throws ClientException,
-            ApiException {
+    public Response send(@PathVariable Long interlocutorId, @RequestBody String  jsonString) {
 
         //TODO Send with ChatService
 

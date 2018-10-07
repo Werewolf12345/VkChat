@@ -5,6 +5,6 @@ import org.springframework.stereotype.Component;
 import ru.ssnd.demo.vkchat.entity.Message;
 
 @Component
-public interface MessagesRepository extends MongoRepository<Message, String> {
+public interface MessagesRepository extends MongoRepository<Message, Long> {
 
 }

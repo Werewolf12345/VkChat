@@ -20,6 +20,7 @@ import ru.ssnd.demo.vkchat.entity.Sender;
 import ru.ssnd.demo.vkchat.repository.MessagesRepository;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -29,7 +30,7 @@ import static org.asynchttpclient.Dsl.asyncHttpClient;
 
 @Service
 public class ChatService {
-    private final MessagesRepository messages;
+    private final MessagesRepository messagesRepository;
     private final VkApiClient vk;
     private final GroupActor actor;
 
@@ -39,7 +40,7 @@ public class ChatService {
 
     @Autowired
     public ChatService(MessagesRepository messages) {
-        this.messages = messages;
+        this.messagesRepository = messages;
         this.vk = new VkApiClient(new HttpTransportClient());
         this.actor = new GroupActor(COMMUNITY_ID, COMMUNITY_ACCESS_TOKEN);
         // TODO Community vk auth
@@ -50,12 +51,18 @@ public class ChatService {
         return COMMUNITY_ID;
     }
 
-    public Message sendMessage(Long interlocutorId, String message) throws ClientException, ApiException {
-        Integer messageId = vk.messages()
-                .send(actor)
-                .message(message)
-                .userId(Math.toIntExact(interlocutorId))
-                .execute();
+    public Message sendMessage(Long interlocutorId, String message) {
+        Integer messageId;
+        try {
+            messageId = vk.messages()
+                    .send(actor)
+                    .message(message)
+                    .userId(Math.toIntExact(interlocutorId))
+                    .execute();
+        } catch (ApiException | ClientException e) {
+            e.printStackTrace();
+            return new Message();
+        }
 
         Sender sender = new Sender();
         sender.setId(interlocutorId);
@@ -69,16 +76,25 @@ public class ChatService {
         messageBeenSent.setSentAt(new Date());
         messageBeenSent.setSent(true);
 
+        messagesRepository.save(messageBeenSent);
+
         return messageBeenSent;
     }
 
-    public Future<List<Message>> getMessage(Long interlocutorId) throws ClientException, ApiException {
+    public Future<List<Message>> getMessage(Long interlocutorId) {
         CompletableFuture<List<Message>> promise
                 = new CompletableFuture<>();
 
-        LongpollParams longpollParams = vk.messages()
-                                          .getLongPollServer(actor)
-                                          .execute();
+        LongpollParams longpollParams;
+        try {
+            longpollParams = vk.messages()
+                               .getLongPollServer(actor)
+                               .execute();
+        } catch (ApiException | ClientException e) {
+            e.printStackTrace();
+            promise.complete(Collections.emptyList());
+            return promise;
+        }
 
         String key = longpollParams.getKey();
         Integer ts = longpollParams.getTs();
@@ -101,7 +117,6 @@ public class ChatService {
                         Gson gson = gsonBuilder.create();
                         Object[][] updates = gson.fromJson(jsonArray.toString(), Object[][].class);
 
-                        System.out.println("Got response: " + response);
                         List<Message> messagesList = new ArrayList<>();
 
                         for (Object[] updatesArray : updates) {
@@ -116,6 +131,9 @@ public class ChatService {
                                 message.setSender(sender);
                                 message.setSentAt(new Date(new Double((double) updatesArray[4]).longValue() * 1000L));
                                 message.setText((String) updatesArray[6]);
+                                message.setSent(true);
+
+                                messagesRepository.save(message);
 
                                 messagesList.add(message);
                             }
@@ -127,13 +145,12 @@ public class ChatService {
 
                     @Override
                     public void onThrowable(Throwable t) {
-                        System.out.println("public void onThrowable(Throwable t): " + t.getMessage());
-                        promise.completeExceptionally(t);
+                        promise.complete(Collections.emptyList());
                     }
                 });
 
         return promise;
     }
 
-    // TODO Get, send & store messages
+    // TODO Get, send & store messagesRepository
 }

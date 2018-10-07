@@ -2,8 +2,6 @@ package ru.ssnd.demo.vkchat.service;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.vk.api.sdk.exceptions.ApiException;
-import com.vk.api.sdk.exceptions.ClientException;
 import org.junit.Ignore;
 import org.junit.Test;
 import ru.ssnd.demo.vkchat.entity.Message;
@@ -24,7 +22,7 @@ public class ChatServiceTest {
 
     @Ignore
     @Test
-    public void getMessageTest() throws ClientException, ApiException, InterruptedException, ExecutionException {
+    public void getMessageTest() throws InterruptedException, ExecutionException {
         ChatService chatService = new ChatService(null);
         Future<List<Message>> messageFuture = chatService.getMessage(509947643L);
 
@@ -39,10 +37,10 @@ public class ChatServiceTest {
 
     @Ignore
     @Test
-    public void sendMessageTest() throws ClientException, ApiException {
+    public void sendMessageTest() {
         ChatService chatService = new ChatService(null);
 
-        System.out.println(chatService.sendMessage(509947643L, "Test"));
+        System.out.println(chatService.sendMessage(50997643L, "Test"));
     }
 
     @Test

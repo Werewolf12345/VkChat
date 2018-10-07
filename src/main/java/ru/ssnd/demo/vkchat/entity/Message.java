@@ -13,15 +13,23 @@ public class Message {
     // https://vgy.me/5AoR4Y.png - after gson
 
     @Expose
-    Long id;
+    private Long id;
     @Expose
-    Boolean sent = false;
+    private Boolean sent;
     @Expose
-    Sender sender;
+    private Sender sender;
     @Expose
-    Date sentAt;
+    private Date sentAt;
     @Expose
-    String text;
+    private String text;
+
+    public Message() {
+        this.id = 0L;
+        this.sent = false;
+        this.sender = null;
+        this.sentAt = new Date();
+        this.text = "";
+    }
 
     public Long getId() {
         return id;
@@ -70,7 +78,7 @@ public class Message {
         String formattedDate = sdf.format(sentAt);
 
         return "Message ID: " + id
-                + "\nSender ID: " + sender.getId()
+                + "\nSender ID: " + (sender != null ? sender.getId() : "Anonymous")
                 + "\nSent at: " + formattedDate
                 + "\nText: " + text;
     }

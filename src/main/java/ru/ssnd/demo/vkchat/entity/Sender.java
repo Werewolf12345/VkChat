@@ -4,11 +4,11 @@ import com.google.gson.annotations.Expose;
 
 public class Sender {
     @Expose
-    Long id;
+    private Long id;
     @Expose
-    String avatarUrl;
+    private String avatarUrl;
     @Expose
-    String name;
+    private String name;
 
     public Long getId() {
         return id;
